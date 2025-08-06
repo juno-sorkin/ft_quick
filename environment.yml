@@ -1,0 +1,11 @@
+name: env
+channels:
+  - conda-forge
+dependencies:
+  # Python version
+  - python=3.10
+  - pytest
+  
+  - pip
+  - pip:
+    # Additional packages that might not be available in conda
