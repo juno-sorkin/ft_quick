@@ -2,35 +2,43 @@ name: Build, Test, Release
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
 
 env:
-  AWS_REGION: "us-east-2" #change if needed
-  ECR_REPOSITORY: "protov3" # Name only
-  AWS_ROLE_NAME: GitHubActionsDeployRole #role must have permissions and trust relationship script
+  AWS_REGION: us-east-2
+  ECR_REPOSITORY: protov3
+  AWS_ROLE_NAME: GitHubActionsDeployRole   # role must exist + have trust policy
 
 jobs:
-  dump-oidc-token-claims:
-    name: Dump OIDC token claims
+  build-and-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write       # needed for OIDC
+      packages: write       # push to ECR
+
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # ───────────────────────────────────────────────────────────────
+      # DEBUG BLOCK – remove when fixed
+      # ───────────────────────────────────────────────────────────────
       - name: Dump OIDC token claims
         id: jwt
         uses: actions/github-script@v7
         with:
           script: |
-            const core = require('@actions/core');
-            const token = await core.getIDToken('sts.amazonaws.com');
-            const [, payload] = token.split('.');
-            const claims = JSON.parse(Buffer.from(payload, 'base64').toString());
-            console.log('🔑 OIDC claims:\n' + JSON.stringify(claims, null, 2));
-            core.setOutput('token', token);
+            const token   = await core.getIDToken('sts.amazonaws.com')
+            const [, pay] = token.split('.')
+            const claims  = JSON.parse(Buffer.from(pay, 'base64').toString())
+            console.log('🔑 OIDC claims:\n' + JSON.stringify(claims, null, 2))
+            core.setOutput('token', token)
+
       - name: Dry-run AssumeRoleWithWebIdentity
-        if: always()   # run even if previous step fails
+        if: always()     # run even if the dump step fails
         env:
           TOKEN: ${{ steps.jwt.outputs.token }}
         run: |
@@ -40,24 +48,12 @@ jobs:
             --role-session-name debug-run \
             --web-identity-token "$TOKEN" \
             --duration-seconds 900
-
-  build-and-test:
-    name: Build and Test
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      id-token: write # Required for AWS OIDC authentication
-      packages: write # Required to push to ECR
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      # ───────────────────────────────────────────────────────────────
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ env.AWS_ROLE_NAME }} # Assumes a role with ECR access
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ env.AWS_ROLE_NAME }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -70,29 +66,19 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          # Build the docker image
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-
-          # Run tests inside the container (as a basic check)
-          # This ensures the container environment is working correctly
-          echo "--- Running pytest inside the container ---"
+          echo '--- running pytest inside the container ---'
           docker run --rm $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG pytest
-
-          # Push the image to ECR
-          echo "--- Pushing image to ECR ---"
+          echo '--- pushing image to ECR ---'
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
   release:
-    name: Release to ECR
     needs: build-and-test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
     steps:
       - name: Display ECR Image URL
         run: |
           echo "Image successfully pushed and tested."
           echo "Image URL: ${{ needs.build-and-test.outputs.image }}"
-          echo "This 'release' step is a placeholder. The image is already in ECR."
-          echo "Further steps like updating a Helm chart or triggering a deployment could be added here."
