@@ -11,6 +11,7 @@ on:
 env:
   AWS_REGION: "us-east-2" #change if needed
   ECR_REPOSITORY: "protov3" # Name only
+  AWS_ROLE_NAME: GitHubActionsDeployRole
 
 jobs:
   build-and-test:
@@ -29,7 +30,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsRole # Assumes a role with ECR access
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ env.AWS_ROLE_NAME }} # Assumes a role with ECR access
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
