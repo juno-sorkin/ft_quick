@@ -7,8 +7,8 @@ channels:
 dependencies:
   - python=3.10
   - pytorch::pytorch
-  - pytorch::torchvision
-  - pytorch::torchaudio
+  # - pytorch::torchvision #not needed for .txt ft
+  # - pytorch::torchaudio #same
   - pytorch-cuda=11.8
   - unsloth::unsloth
   - huggingface_hub

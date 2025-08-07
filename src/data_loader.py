@@ -1,19 +1,23 @@
 from datasets import load_dataset
 import os
 
-def load_and_prepare_dataset(data_config, tokenizer, paths_config):
+def load_and_prepare_dataset(data_config, tokenizer, paths_config=None):
     """
-    Loads a dataset from a local path and prepares it for training.
+    Loads a dataset from a local path (synced from s3 via entrypoint.sh) and prepares it for training.
 
     Args:
         data_config (dict): Configuration for data loading.
         tokenizer: The tokenizer to use for processing the text.
-        paths_config (dict): Configuration for file paths.
+        paths_config (dict, optional): Configuration for file paths. Defaults to {'input_dir': 'data_box'}.
 
     Returns:
         A processed dataset ready for training.
     """
     print("--- Loading and preparing dataset ---")
+
+    # Set default paths if not provided
+    if paths_config is None:
+        paths_config = {'input_dir': 'data_box'}
 
     # Construct file paths
     train_file_path = os.path.join(paths_config['input_dir'], data_config['train_file'])

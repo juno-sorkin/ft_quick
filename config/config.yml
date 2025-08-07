@@ -3,7 +3,7 @@ model:
   name: "unsloth/gpt-oss-20b"
   max_seq_length: 2048
   dtype: "bfloat16" # or float16, bfloat16
-  load_in_4bit: true
+  load_in_8bit: true
 
 # PEFT LoRA Configuration
 lora:
@@ -17,7 +17,7 @@ lora:
 # Training Configuration
 training:
   optimizer: "adamw_8bit"
-  learning_rate: 0.0002
+  learning_rate: 0.0002 #non-scientific notation intentional
   lr_scheduler_type: "linear"
   warmup_steps: 100
   per_device_train_batch_size: 2
@@ -33,16 +33,17 @@ training:
 
 # Data Configuration
 data:
-  s3_input_bucket: "your-s3-input-bucket-name"
-  s3_output_bucket: "your-s3-output-bucket-name"
+  s3_input_bucket: "oss-lora"
+  s3_output_bucket: "oss-lora"
+  bucket_prefix: "inputs"
   train_file: "train.jsonl"
   validation_file: "validation.jsonl"
   dataset_text_field: "text" # The field in your dataset that contains the text to train on
 
 # Environment Configuration
 env:
-  wandb_project: "text-style-mimicry"
-  aws_region: "us-east-1"
+  wandb_project: "oss-lora"
+  aws_region: "us-east-2"
 
 # Paths
 paths:

@@ -9,8 +9,8 @@ on:
       - main
 
 env:
-  AWS_REGION: "us-east-1" # Non-secret environment variable
-  ECR_REPOSITORY: "text-style-mimicry" # Name of your ECR repository
+  AWS_REGION: "us-east-2" #change if needed
+  ECR_REPOSITORY: "protov3" # Name only
 
 jobs:
   build-and-test:

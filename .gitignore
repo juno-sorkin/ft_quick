@@ -22,7 +22,6 @@ docker-compose.override.yml
 # AWS
 .aws/
 credentials
-config
 
 # Data
 data_box/outputs/*
