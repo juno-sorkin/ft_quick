@@ -1,0 +1,70 @@
+name: Build, Test, Release
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  AWS_REGION: "us-east-1" # Non-secret environment variable
+  ECR_REPOSITORY: "text-style-mimicry" # Name of your ECR repository
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write # Required for AWS OIDC authentication
+      packages: write # Required to push to ECR
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsRole # Assumes a role with ECR access
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Build the docker image
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+
+          # Run tests inside the container (as a basic check)
+          # This ensures the container environment is working correctly
+          echo "--- Running pytest inside the container ---"
+          docker run --rm $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG pytest
+
+          # Push the image to ECR
+          echo "--- Pushing image to ECR ---"
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  release:
+    name: Release to ECR
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Display ECR Image URL
+        run: |
+          echo "Image successfully pushed and tested."
+          echo "Image URL: ${{ needs.build-and-test.outputs.image }}"
+          echo "This 'release' step is a placeholder. The image is already in ECR."
+          echo "Further steps like updating a Helm chart or triggering a deployment could be added here."

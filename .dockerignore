@@ -1,84 +1,33 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+# Git
+.git
+.gitignore
 
-# C extensions
-*.so
+# Docker
+Dockerfile
+.dockerignore
 
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
+# Documentation
+docs/
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
+# Local data and artifacts
+data_box/
+outputs/
+logs/
 
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
-.pytest_cache/
+# Python virtual environment
+.venv/
+env/
+venv/
 
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints
+# Secrets
+.env
+secrets/
+*.s3
 
-# pyenv
-.python-version
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# VS Code
+# IDE and OS specific
+.idea/
 .vscode/
+.DS_Store
 
-# Environment
-.env.*
-*.env
-
-# Logs
-*.log
-
-# AWS credentials
-.aws/
-
-
-# Model artifacts
-*.safetensors
-*.pt
-*.pth
-*.ckpt
-*.ptl
-*.pthl
-*.ckptl
-
-
-# System files
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# Local dev
-local_settings.py
+# Pytest cache
+.pytest_cache/

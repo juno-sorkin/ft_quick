@@ -1,11 +1,22 @@
-name: env
+name: text-style-mimicry
 channels:
+  - pytorch
+  - nvidia
   - conda-forge
+  - unsloth
 dependencies:
-  # Python version
   - python=3.10
+  - pytorch::pytorch
+  - pytorch::torchvision
+  - pytorch::torchaudio
+  - pytorch-cuda=11.8
+  - unsloth::unsloth
+  - huggingface_hub
+  - transformers
+  - datasets
+  - peft
+  - accelerate
+  - wandb
   - pytest
-  
-  - pip
-  - pip:
-    # Additional packages that might not be available in conda
+  - boto3
+  - pyyaml
