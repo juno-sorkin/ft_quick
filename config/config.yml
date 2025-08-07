@@ -1,0 +1,53 @@
+# Model Configuration
+model:
+  name: "unsloth/gpt-oss-20b"
+  max_seq_length: 2048
+  dtype: "bfloat16" # or float16, bfloat16
+  load_in_4bit: true
+
+# PEFT LoRA Configuration
+lora:
+  r: 16
+  lora_alpha: 32
+  target_modules: ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+  lora_dropout: 0.05
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+# Training Configuration
+training:
+  optimizer: "adamw_8bit"
+  learning_rate: 0.0002
+  lr_scheduler_type: "linear"
+  warmup_steps: 100
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 4
+  max_steps: 1000
+  logging_steps: 10
+  save_steps: 100
+  eval_steps: 100
+  evaluation_strategy: "steps"
+  do_eval: true
+  fp16: false # unsloth handles this
+  bf16: true # unsloth handles this
+
+# Data Configuration
+data:
+  s3_input_bucket: "your-s3-input-bucket-name"
+  s3_output_bucket: "your-s3-output-bucket-name"
+  train_file: "train.jsonl"
+  validation_file: "validation.jsonl"
+  dataset_text_field: "text" # The field in your dataset that contains the text to train on
+
+# Environment Configuration
+env:
+  wandb_project: "text-style-mimicry"
+  aws_region: "us-east-1"
+
+# Paths
+paths:
+  # These paths are relative to the container's /app directory
+  input_dir: "data_box/inputs"
+  output_dir: "data_box/outputs"
+  log_dir: "data_box/outputs/logs"
+  adapter_dir: "data_box/outputs/models"

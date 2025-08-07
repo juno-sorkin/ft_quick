@@ -1,84 +1,43 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
-*.py[cod]
-*$py.class
-
-# C extensions
-*.so
-
-# Distribution / packaging
+*.pyc
+*.pyo
+*.pyd
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Installer logs
+env/
+venv/
 pip-log.txt
 pip-delete-this-directory.txt
+.eggs/
+.egg-info/
+*.egg
+dist/
+build/
 
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
-.pytest_cache/
+# Docker
+docker-compose.yml
+docker-compose.override.yml
+.dockerignore
 
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# VS Code
-.vscode/
-
-# Environment
-.env.*
-*.env
-
-# Logs
-*.log
-
-# AWS credentials
+# AWS
 .aws/
+credentials
+config
+
+# Data
+data_box/outputs/*
+!data_box/outputs/.gitkeep
+data_box/inputs/*
+!data_box/inputs/.gitkeep
 
 
-# Model artifacts
-*.safetensors
+# Other
+.DS_Store
+*.log
+*.log.*
+wandb/
+.env
+secrets/
+*.s3
 *.pt
-*.pth
-*.ckpt
-*.ptl
-*.pthl
-*.ckptl
-
-
-# System files
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# Local dev
-local_settings.py
+*.bin

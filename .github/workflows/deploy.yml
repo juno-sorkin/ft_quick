@@ -1,0 +1,80 @@
+name: Deploy and Run Training
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Run mode (e.g., train, test)'
+        required: true
+        default: 'train'
+      image_tag:
+        description: 'Docker image tag to deploy (e.g., latest, or a SHA)'
+        required: true
+        default: 'latest'
+
+env:
+  AWS_REGION: "us-east-1"
+  ASG_NAME: "text-style-mimicry-asg" # Name of your Auto Scaling Group
+
+jobs:
+  deploy:
+    name: Deploy to EC2 and Run Training
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write # Required for AWS OIDC authentication
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsDeployRole # A role with ASG, EC2, and SSM permissions
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Start EC2 instance
+        run: |
+          echo "--- Scaling up ASG to 1 instance ---"
+          aws autoscaling set-desired-capacity --auto-scaling-group-name ${{ env.ASG_NAME }} --desired-capacity 1
+          echo "--- Waiting for instance to be healthy ---"
+          aws autoscaling wait group-in-service --auto-scaling-group-name ${{ env.ASG_NAME }}
+
+      - name: Get Instance ID
+        id: get-instance-id
+        run: |
+          INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:aws:autoscaling:groupName,Values=${{ env.ASG_NAME }}" "Name=instance-state-name,Values=running" --query "Reservations[0].Instances[0].InstanceId" --output text)
+          echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
+
+      - name: Run Training Job via SSM
+        run: |
+          echo "--- Sending SSM Run Command to instance ${{ steps.get-instance-id.outputs.instance_id }} ---"
+          aws ssm send-command \
+            --instance-ids "${{ steps.get-instance-id.outputs.instance_id }}" \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=[
+              "#!/bin/bash",
+              "set -e",
+              "echo --- Running nvidia-smi smoke test ---",
+              "nvidia-smi",
+              "echo --- Logging in to ECR ---",
+              "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com",
+              "echo --- Pulling Docker image ---",
+              "docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ github.event.inputs.image_tag }}",
+              "echo --- Running container ---",
+              "docker run --gpus all --rm \\
+                -e WANDB_API_KEY=${{ secrets.WANDB_API_KEY }} \\
+                -e S3_INPUT_BUCKET=${{ secrets.S3_INPUT_BUCKET }} \\
+                -e S3_OUTPUT_BUCKET=${{ secrets.S3_OUTPUT_BUCKET }} \\
+                -e MODE=${{ github.event.inputs.mode }} \\
+                -e AWS_REGION=${{ env.AWS_REGION }} \\
+                ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ github.event.inputs.image_tag }}"
+            ]'
+
+      - name: Shutdown EC2 instance
+        if: always() # Always run this step to ensure shutdown
+        run: |
+          echo "--- Scaling down ASG to 0 instances ---"
+          aws autoscaling set-desired-capacity --auto-scaling-group-name ${{ env.ASG_NAME }} --desired-capacity 0
