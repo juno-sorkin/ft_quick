@@ -11,7 +11,7 @@ on:
 env:
   AWS_REGION: "us-east-2" #change if needed
   ECR_REPOSITORY: "protov3" # Name only
-  AWS_ROLE_NAME: GitHubActionsDeployRole #role must have permissions
+  AWS_ROLE_NAME: GitHubActionsDeployRole #role must have permissions and trust relationship
 
 jobs:
   build-and-test:
