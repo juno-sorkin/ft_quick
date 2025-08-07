@@ -9,7 +9,7 @@ on:
 env:
   AWS_REGION: us-east-2
   ECR_REPOSITORY: protov3
-  AWS_ROLE_NAME: GitHubActionsDeployRole   # role must exist + have trust policy
+  AWS_ROLE_NAME: GitHubActionsDeployRole   # role must exist and have trust policy
 
 jobs:
   build-and-test:
