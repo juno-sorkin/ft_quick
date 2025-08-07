@@ -31,6 +31,7 @@ data_box/inputs/*
 
 
 # Other
+inspect_arch.py
 .DS_Store
 *.log
 *.log.*
