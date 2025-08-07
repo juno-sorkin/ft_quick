@@ -9,7 +9,7 @@ COPY environment.yml .
 COPY config/config.yml ./config/config.yml
 
 # Create the micromamba environment
-RUN micromamba create -f environment.yml -y && \
+RUN micromamba create -y -n base -f environment.yml -y && \
     micromamba clean --all --yes
 
 # Copy the rest of the application files
