@@ -23,33 +23,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # ───────────────────────────────────────────────────────────────
-      # DEBUG BLOCK – remove when fixed
-      # ───────────────────────────────────────────────────────────────
-      - name: Dump OIDC token claims
-        id: jwt
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const token   = await core.getIDToken('sts.amazonaws.com')
-            const [, pay] = token.split('.')
-            const claims  = JSON.parse(Buffer.from(pay, 'base64').toString())
-            console.log('🔑 OIDC claims:\n' + JSON.stringify(claims, null, 2))
-            core.setOutput('token', token)
-
-      - name: Dry-run AssumeRoleWithWebIdentity
-        if: always()     # run even if the dump step fails
-        env:
-          TOKEN: ${{ steps.jwt.outputs.token }}
-        run: |
-          set -x
-          aws sts assume-role-with-web-identity \
-            --role-arn arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${AWS_ROLE_NAME} \
-            --role-session-name debug-run \
-            --web-identity-token "$TOKEN" \
-            --duration-seconds 900
-      # ───────────────────────────────────────────────────────────────
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:

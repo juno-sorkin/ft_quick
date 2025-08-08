@@ -21,6 +21,10 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# 2. Inspect the model architecture
+echo "--- Inspecting model architecture ---"
+python inspect_arch.py
+
 # 2. Run the main Python script
 echo "--- Executing main application ---"
 python src/main.py "$@"
