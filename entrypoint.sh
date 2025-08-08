@@ -7,23 +7,36 @@ MODE=${MODE:-train}
 echo "--- Starting Entrypoint Script ---"
 echo "MODE: $MODE"
 
-# 1. Sync data from S3 (Placeholder)
+# 1. Sync data from S3
 echo "--- Syncing data from S3 ---"
-# This is a placeholder. In a real scenario, you would use aws s3 sync.
-# Example: aws s3 sync s3://${S3_INPUT_BUCKET}/ /app/data_box/inputs/
-echo "Simulating S3 data download..."
-mkdir -p /app/data_box/inputs
-touch /app/data_box/inputs/placeholder_train.jsonl
+if [ -z "${S3_BUCKET}" ]; then
+    echo "Error: S3_BUCKET environment variable is not set"
+    exit 1
+fi
+
+# Sync from S3
+aws s3 sync s3://${S3_BUCKET}/inputs/ /app/data_box/inputs/
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to sync data from S3"
+    exit 1
+fi
 
 # 2. Run the main Python script
 echo "--- Executing main application ---"
 python src/main.py "$@"
 
-# 3. Sync artifacts to S3 (Placeholder)
+# 3. Sync artifacts to S3
 echo "--- Syncing artifacts to S3 ---"
-# This is a placeholder. In a real scenario, you would use aws s3 sync.
-# Example: aws s3 sync /app/data_box/outputs/ s3://${S3_OUTPUT_BUCKET}/
-echo "Simulating S3 artifact upload..."
-touch /app/data_box/outputs/placeholder_log.txt
+if [ -z "${S3_BUCKET}" ]; then
+    echo "Error: S3_BUCKET environment variable is not set"
+    exit 1
+fi
+
+# Sync to S3
+aws s3 sync /app/data_box/outputs/ s3://${S3_BUCKET}/outputs/
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to sync artifacts to S3"
+    exit 1
+fi
 
 echo "--- Entrypoint Script Finished ---"

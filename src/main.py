@@ -2,9 +2,9 @@ import argparse
 import yaml
 from pprint import pprint
 
-# from model import load_model, load_tokenizer
-# from data_loader import load_and_prepare_dataset
-# from train import train_model
+from model import load_model_and_tokenizer, apply_peft
+from data_loader import load_and_prepare_dataset
+from train import train_model
 
 def main():
     """
@@ -31,24 +31,23 @@ def main():
     if args.mode == "train":
         print("--- Starting Training Mode ---")
         # 1. Load tokenizer and model
-        # tokenizer = load_tokenizer(config['model'])
-        # model = load_model(config['model'])
+        model, tokenizer = load_model_and_tokenizer(config['model'])
+        model = apply_peft(model, config['lora'])
 
         # 2. Load and prepare dataset
-        # dataset = load_and_prepare_dataset(config['data'], tokenizer)
+        dataset = load_and_prepare_dataset(config['data'], tokenizer)
 
         # 3. Start training
-        # train_model(config, model, tokenizer, dataset)
-        print("Placeholder for training logic.")
+        train_model(config, model, tokenizer, dataset['train'], dataset['validation'])
 
     elif args.mode == "test":
         print("--- Starting Test Mode ---")
-        # Placeholder for testing logic
+        # TODO: implement testing logic
         print("Placeholder for testing logic.")
 
     elif args.mode == "inference":
         print("--- Starting Inference Mode ---")
-        # Placeholder for inference logic
+        # TODO: implement inference logic
         print("Placeholder for inference logic.")
 
     else:

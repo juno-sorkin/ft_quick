@@ -9,7 +9,6 @@ dependencies:
   # - pytorch::torchvision #not needed for .txt ft
   # - pytorch::torchaudio #same
   - pytorch-cuda=11.8
-  - unsloth::unsloth
   - huggingface_hub
   - transformers
   - datasets
@@ -20,3 +19,7 @@ dependencies:
   - boto3
   - pyyaml
   - bzip2
+  - pip
+  - pip:
+    - unsloth
+

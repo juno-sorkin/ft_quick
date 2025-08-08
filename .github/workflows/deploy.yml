@@ -66,8 +66,7 @@ jobs:
               "echo --- Running container ---",
               "docker run --gpus all --rm \\
                 -e WANDB_API_KEY=${{ secrets.WANDB_API_KEY }} \\
-                -e S3_INPUT_BUCKET=${{ secrets.S3_INPUT_BUCKET }} \\
-                -e S3_OUTPUT_BUCKET=${{ secrets.S3_OUTPUT_BUCKET }} \\
+                -e S3_BUCKET=${{ secrets.S3_BUCKET }} \\
                 -e MODE=${{ github.event.inputs.mode }} \\
                 -e AWS_REGION=${{ env.AWS_REGION }} \\
                 ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ github.event.inputs.image_tag }}"
