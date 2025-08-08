@@ -41,7 +41,7 @@ jobs:
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           echo '--- running pytest inside the container ---'
-          docker run --rm $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG pytest
+          docker run --rm --entrypoint="" $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG micromamba run -n base pytest         
           echo '--- pushing image to ECR ---'
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
