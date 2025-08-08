@@ -10,9 +10,7 @@ Dockerfile
 docs/
 
 # Local data and artifacts
-data_box/
-outputs/
-logs/
+temp_box/
 
 # Python virtual environment
 .venv/

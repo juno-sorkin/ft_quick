@@ -8,7 +8,7 @@ def load_and_prepare_dataset(data_config, tokenizer, paths_config=None):
     Args:
         data_config (dict): Configuration for data loading.
         tokenizer: The tokenizer to use for processing the text.
-        paths_config (dict, optional): Configuration for file paths. Defaults to {'input_dir': 'data_box'}.
+        paths_config (dict, optional): Configuration for file paths. Defaults to {'input_dir': 'data_box/inputs'}.
 
     Returns:
         A processed dataset ready for training.
@@ -17,7 +17,8 @@ def load_and_prepare_dataset(data_config, tokenizer, paths_config=None):
 
     # Set default paths if not provided
     if paths_config is None:
-        paths_config = {'input_dir': 'data_box'}
+        paths_config = {'input_dir': 'data_box/inputs'}
+    if
 
     # Construct file paths
     train_file_path = os.path.join(paths_config['input_dir'], data_config['train_file'])

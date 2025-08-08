@@ -53,5 +53,7 @@ def main():
     else:
         raise ValueError(f"Invalid mode: {args.mode}")
 
+# TODO: add inference logic
+
 if __name__ == "__main__":
     main()
