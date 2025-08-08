@@ -1,0 +1,35 @@
+{
+    "family": "train-gpu",
+    "networkMode": "awsvpc",
+    "requiresCompatibilities": ["EC2"],
+    "executionRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/ecsTaskExecutionRole",
+    "taskRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/TrainingTaskRole",
+    "cpu": "2048",
+    "memory": "4096",
+    "containerDefinitions": [
+      {
+        "name": "train",
+        "image": "<ACCOUNT_ID>.dkr.ecr.us-east-2.amazonaws.com/protov3:latest",
+        "essential": true,
+        "cpu": 2048,
+        "memory": 4096,
+        "resourceRequirements": [
+          { "type": "GPU", "value": "1" }
+        ],
+        "environment": [
+          { "name": "AWS_REGION", "value": "us-east-2" }
+        ],
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "/ecs/",
+            "awslogs-region": "us-east-2",
+            "awslogs-stream-prefix": "train"
+          }
+        },
+        "linuxParameters": { "initProcessEnabled": true },
+        "stopTimeout": 120
+      }
+    ]
+  }
+  

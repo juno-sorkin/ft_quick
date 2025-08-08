@@ -18,23 +18,33 @@ def load_and_prepare_dataset(data_config, tokenizer, paths_config=None):
     # Set default paths if not provided
     if paths_config is None:
         paths_config = {'input_dir': 'data_box/inputs'}
-    if
+    if data_config is None:
+        data_config = {
+            'train_file': 'train.jsonl',
+            'validation_file': 'val.jsonl',
+            'test_file': 'test.jsonl',
+            'dataset_text_field': 'text',
+        }
 
     # Construct file paths
     train_file_path = os.path.join(paths_config['input_dir'], data_config['train_file'])
     validation_file_path = os.path.join(paths_config['input_dir'], data_config['validation_file'])
+    test_file_path = os.path.join(paths_config['input_dir'], data_config['test_file'])
 
     # Check if files exist
     if not os.path.exists(train_file_path):
         raise FileNotFoundError(f"Train file not found at: {train_file_path}")
     if not os.path.exists(validation_file_path):
         raise FileNotFoundError(f"Validation file not found at: {validation_file_path}")
+    if not os.path.exists(test_file_path):
+        raise FileNotFoundError(f"Test file not found at: {test_file_path}")
 
     dataset = load_dataset(
         "json",
         data_files={
             "train": train_file_path,
             "validation": validation_file_path,
+            "test": test_file_path,
         },
     )
 

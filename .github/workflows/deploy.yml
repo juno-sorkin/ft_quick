@@ -1,79 +1,104 @@
-name: Deploy and Run Training
+name: Run Training (ECS via Capacity Provider)
 
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'Run mode (e.g., train, test)'
+        description: "training mode (e.g., train, test)"
         required: true
-        default: 'train'
+        default: "train"
       image_tag:
-        description: 'Docker image tag to deploy (e.g., latest, or a SHA)'
+        description: "ECR image tag (e.g., latest or a SHA)"
         required: true
-        default: 'latest'
+        default: "latest"
 
 env:
-  AWS_REGION: "us-east-2"
-  ASG_NAME: "nfra-ECS-Cluster-proto-phi-8fb98b30-ECSAutoScalingGroup-iCcDW25yd5ZT" # Name of your Auto Scaling Group
+  AWS_REGION: us-east-2
+  ECR_REPOSITORY: protov3
+  AWS_ROLE_NAME: GitHubActionsDeployRole   # role must exist and have trust policy
+  CLUSTER: proto-phi              # <-- set me
+  CP_NAME: Infra-ECS-Cluster-proto-phi-8fb98b30-AsgCapacityProvider-8II2wKNv8Crf        # <-- set me (the one wired to your ASG)
+  SUBNETS: subnet-0d2d641cd7ec72a28,subnet-00ec8c2e5a55e3c1a,subnet-0b51407e801e66f06      # <-- private subnets, comma-separated (no spaces)
+  SECURITY_GROUPS: 	sg-0b6cbfe847a1bf123        # <-- security group id
+  LOG_GROUP: /ecs/                       # <-- pre-create or allow creation in exec role
 
 jobs:
-  deploy:
-    name: Deploy to EC2 and Run Training
+  run:
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
-      id-token: write # Required for AWS OIDC authentication
+      id-token: write  # for AWS OIDC
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsDeployRole # A role with ASG, EC2, and SSM permissions, change name if needed
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ env.AWS_ROLE_NAME }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Start EC2 instance
+      - name: Patch task def with ECR image tag
         run: |
-          echo "--- Scaling up ASG to 1 instance ---"
-          aws autoscaling set-desired-capacity --auto-scaling-group-name ${{ env.ASG_NAME }} --desired-capacity 1
-          echo "--- Waiting for instance to be healthy ---"
-          aws autoscaling wait group-in-service --auto-scaling-group-name ${{ env.ASG_NAME }}
+          IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ github.event.inputs.image_tag }}"
+          sed "s#<ACCOUNT_ID>#${{ secrets.AWS_ACCOUNT_ID }}#g" config/task_def.json \
+            | jq --arg img "$IMAGE" '.containerDefinitions[0].image = $img' > taskdef.out.json
+          echo "Using image: $IMAGE"
 
-      - name: Get Instance ID
-        id: get-instance-id
+      - name: Register task definition revision
+        id: reg
         run: |
-          INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:aws:autoscaling:groupName,Values=${{ env.ASG_NAME }}" "Name=instance-state-name,Values=running" --query "Reservations[0].Instances[0].InstanceId" --output text)
-          echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
+          ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://taskdef.out.json \
+            --query 'taskDefinition.taskDefinitionArn' --output text)
+          echo "taskdef_arn=$ARN" >> "$GITHUB_OUTPUT"
 
-      - name: Run Training Job via SSM
+      - name: Run task via Capacity Provider (secrets from GitHub)
+        id: run
         run: |
-          echo "--- Sending SSM Run Command to instance ${{ steps.get-instance-id.outputs.instance_id }} ---"
-          aws ssm send-command \
-            --instance-ids "${{ steps.get-instance-id.outputs.instance_id }}" \
-            --document-name "AWS-RunShellScript" \
-            --parameters 'commands=[
-              "#!/bin/bash",
-              "set -e",
-              "echo --- Running nvidia-smi smoke test ---",
-              "nvidia-smi",
-              "echo --- Logging in to ECR ---",
-              "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com",
-              "echo --- Pulling Docker image ---",
-              "docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ github.event.inputs.image_tag }}",
-              "echo --- Running container ---",
-              "docker run --gpus all --rm \\
-                -e WANDB_API_KEY=${{ secrets.WANDB_API_KEY }} \\
-                -e S3_BUCKET=${{ secrets.S3_BUCKET }} \\
-                -e MODE=${{ github.event.inputs.mode }} \\
-                -e AWS_REGION=${{ env.AWS_REGION }} \\
-                ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ github.event.inputs.image_tag }}"
-            ]'
+          # Build container env overrides; container name must match "train"
+          OVERRIDES=$(jq -n \
+            --arg mode "${{ github.event.inputs.mode }}" \
+            --arg s3   "${{ secrets.S3_BUCKET }}" \
+            --arg wandb "${{ secrets.WANDB_API_KEY }}" \
+            '{ containerOverrides: [ { name: "train",
+                environment: [
+                  {name:"MODE",value:$mode},
+                  {name:"S3_BUCKET",value:$s3},
+                  {name:"WANDB_API_KEY",value:$wandb}
+                ] } ] }')
 
-      - name: Shutdown EC2 instance
-        if: always() # Always run this step to ensure shutdown
+          TASK_ARN=$(aws ecs run-task \
+            --cluster "${{ env.CLUSTER }}" \
+            --task-definition "${{ steps.reg.outputs.taskdef_arn }}" \
+            --capacity-provider-strategy capacityProvider=${{ env.CP_NAME }},weight=1 \
+            --count 1 \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ env.SUBNETS }}],securityGroups=[${{ env.SECURITY_GROUPS }}],assignPublicIp=DISABLED}" \
+            --overrides "$OVERRIDES" \
+            --query 'tasks[0].taskArn' --output text)
+
+          echo "task_arn=$TASK_ARN" >> "$GITHUB_OUTPUT"
+
+      - name: Wait and fail on non-zero exit
         run: |
-          echo "--- Scaling down ASG to 0 instances ---"
-          aws autoscaling set-desired-capacity --auto-scaling-group-name ${{ env.ASG_NAME }} --desired-capacity 0
+          aws ecs wait tasks-stopped --cluster "${{ env.CLUSTER }}" --tasks "${{ steps.run.outputs.task_arn }}"
+          DESC=$(aws ecs describe-tasks --cluster "${{ env.CLUSTER }}" --tasks "${{ steps.run.outputs.task_arn }}")
+          echo "$DESC" > task-desc.json
+          EXIT=$(jq -r '.tasks[0].containers[0].exitCode // empty' task-desc.json)
+          REASON=$(jq -r '.tasks[0].stoppedReason // ""' task-desc.json)
+          echo "ExitCode=$EXIT  Reason=$REASON"
+          test "$EXIT" = "0"
+
+      - name: Print last 200 log lines (best-effort)
+        if: always()
+        run: |
+          TID=$(jq -r '.tasks[0].taskArn' task-desc.json | awk -F'/' '{print $NF}')
+          aws logs describe-log-streams --log-group-name "${{ env.LOG_GROUP }}" \
+            --log-stream-name-prefix "train/train/$TID" \
+            --query 'logStreams[0].logStreamName' --output text > stream.txt || true
+          if [ -s stream.txt ]; then
+            aws logs get-log-events --log-group-name "${{ env.LOG_GROUP }}" \
+              --log-stream-name "$(cat stream.txt)" --limit 200 \
+              --query 'events[].message' --output text || true
+          fi

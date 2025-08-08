@@ -1,5 +1,7 @@
 from transformers import Trainer, TrainingArguments
 import os
+import torch
+import math
 
 class PerplexityTrainer(Trainer):
     """
@@ -7,19 +9,19 @@ class PerplexityTrainer(Trainer):
     """
     def compute_loss(self, model, inputs, return_outputs=False):
         """
-        Computes the loss and calculates perplexity.
+        Computes the loss and logs perplexity as a Python float.
         """
         outputs = model(**inputs)
         loss = outputs.loss
 
-        # Calculate perplexity
-        try:
-            perplexity = torch.exp(loss)
-        except:
-            # Handle cases where loss is not a tensor or other issues
-            perplexity = float('inf')
+        with torch.no_grad():
+            try:
+                loss_value = float(loss.detach().to(dtype=torch.float32).item())
+                perplexity_value = math.exp(loss_value) if loss_value < 88.0 else float("inf")
+            except Exception:
+                perplexity_value = float("inf")
 
-        self.log({"perplexity": perplexity.item()})
+        self.log({"perplexity": perplexity_value})
 
         return (loss, outputs) if return_outputs else loss
 
@@ -36,6 +38,14 @@ def train_model(config, model, tokenizer, train_dataset, eval_dataset):
         eval_dataset: The evaluation dataset.
     """
     print("--- Setting up training ---")
+
+    # Ensure W&B project is applied if provided in config
+    try:
+        wandb_project = config.get('env', {}).get('wandb_project')
+        if wandb_project:
+            os.environ.setdefault("WANDB_PROJECT", str(wandb_project))
+    except Exception:
+        pass
 
     training_args = TrainingArguments(
         output_dir=config['paths']['output_dir'],

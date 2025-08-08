@@ -7,7 +7,7 @@ def load_model_and_tokenizer(model_config):
 
     Args:
         model_config (dict): A dictionary containing model configuration.
-                             Expected keys: 'name', 'max_seq_length', 'dtype', 'load_in_4bit'.
+                             Expected keys: 'name', 'max_seq_length', 'dtype', 'load_in_8bit'.
 
     Returns:
         tuple: A tuple containing the loaded model and tokenizer.
@@ -22,12 +22,15 @@ def load_model_and_tokenizer(model_config):
     else:
         dtype = None
 
-    model, tokenizer = FastLanguageModel.from_pretrained(
-        model_name=model_config['name'],
-        max_seq_length=model_config['max_seq_length'],
-        dtype=dtype,
-        load_in_4bit=model_config['load_in_4bit'],
-    )
+    kwargs = {
+        'model_name': model_config['name'],
+        'max_seq_length': model_config['max_seq_length'],
+        'dtype': dtype,
+    }
+    if 'load_in_8bit' in model_config:
+        kwargs['load_in_8bit'] = bool(model_config['load_in_8bit'])
+
+    model, tokenizer = FastLanguageModel.from_pretrained(**kwargs)
 
     print("--- Model and tokenizer loaded successfully ---")
     return model, tokenizer
