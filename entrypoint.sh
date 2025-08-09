@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+if [ "${DEBUG:-0}" = "1" ]; then
+  echo "DEBUG mode: sleeping..."
+  sleep 3600
+fi
+
 # Default mode if not set
 MODE=${MODE:-train}
 
