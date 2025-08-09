@@ -76,6 +76,7 @@ def load_and_prepare_dataset(data_config, tokenizer, paths_config=None):
     tokenized_dataset = dataset.map(
         tokenize_function,
         batched=True,
+        batch_size=10,  # Process in smaller chunks to avoid OOM
         remove_columns=dataset["train"].column_names,
     )
 

@@ -9,8 +9,8 @@
         "name": "train",
         "image": "<ACCOUNT_ID>.dkr.ecr.us-east-2.amazonaws.com/protov3:latest",
         "essential": true,
-        "cpu": 2048,
-        "memory": 4096,
+        "cpu": 4096,
+        "memory": 15360,
         "resourceRequirements": [
           { "type": "GPU", "value": "1" }
         ],
