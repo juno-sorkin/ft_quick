@@ -39,7 +39,7 @@ data:
   s3_bucket: "oss-lora"
   bucket_prefix: "inputs"
   train_file: "train.jsonl"
-  validation_file: "validation.jsonl"
+  validation_file: "val.jsonl"
   test_file: "test.jsonl"
   dataset_text_field: "text" # The field in your dataset that contains the text to train on
 
