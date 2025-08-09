@@ -1,9 +1,11 @@
-from datasets import load_dataset
+from datasets import Dataset, DatasetDict
 import os
+import json
 
 def load_and_prepare_dataset(data_config, tokenizer, paths_config=None):
     """
-    Loads a dataset from a local path (synced from s3 via entrypoint.sh) and prepares it for training.
+    Loads a dataset from local files and prepares it for training.
+    It now handles conversational JSON format by applying a chat template.
 
     Args:
         data_config (dict): Configuration for data loading.
@@ -23,7 +25,6 @@ def load_and_prepare_dataset(data_config, tokenizer, paths_config=None):
             'train_file': 'train.jsonl',
             'validation_file': 'val.jsonl',
             'test_file': 'test.jsonl',
-            'dataset_text_field': 'text',
         }
 
     # Construct file paths
@@ -31,27 +32,41 @@ def load_and_prepare_dataset(data_config, tokenizer, paths_config=None):
     validation_file_path = os.path.join(paths_config['input_dir'], data_config['validation_file'])
     test_file_path = os.path.join(paths_config['input_dir'], data_config['test_file'])
 
-    # Check if files exist
-    if not os.path.exists(train_file_path):
-        raise FileNotFoundError(f"Train file not found at: {train_file_path}")
-    if not os.path.exists(validation_file_path):
-        raise FileNotFoundError(f"Validation file not found at: {validation_file_path}")
-    if not os.path.exists(test_file_path):
-        raise FileNotFoundError(f"Test file not found at: {test_file_path}")
+    # Helper function to load and process a single jsonl file
+    def process_file(file_path):
+        formatted_texts = []
+        with open(file_path, 'r') as f:
+            for line in f:
+                messages = json.loads(line)
+                formatted_texts.append(tokenizer.apply_chat_template(messages, tokenize=False))
+        return formatted_texts
 
-    dataset = load_dataset(
-        "json",
-        data_files={
-            "train": train_file_path,
-            "validation": validation_file_path,
-            "test": test_file_path,
-        },
-    )
+    # Load and process each file
+    train_texts = process_file(train_file_path)
+    validation_texts = process_file(validation_file_path)
+    test_texts = process_file(test_file_path)
+
+    # Create a Hugging Face Dataset
+    dataset = Dataset.from_dict({
+        'text': train_texts
+    })
+    validation_dataset = Dataset.from_dict({
+        'text': validation_texts
+    })
+    test_dataset = Dataset.from_dict({
+        'text': test_texts
+    })
+    
+    dataset = DatasetDict({
+        "train": dataset,
+        "validation": validation_dataset,
+        "test": test_dataset
+    })
 
     # Tokenization function
     def tokenize_function(examples):
         return tokenizer(
-            examples[data_config['dataset_text_field']],
+            examples["text"],
             truncation=True,
             max_length=tokenizer.model_max_length,
             padding="max_length",
@@ -61,7 +76,7 @@ def load_and_prepare_dataset(data_config, tokenizer, paths_config=None):
     tokenized_dataset = dataset.map(
         tokenize_function,
         batched=True,
-        remove_columns=dataset["train"].column_names, # Remove original columns
+        remove_columns=dataset["train"].column_names,
     )
 
     print("--- Dataset loaded and prepared successfully ---")
