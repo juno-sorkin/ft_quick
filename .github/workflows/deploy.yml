@@ -109,7 +109,10 @@ jobs:
             DESC=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$TASK_ARN")
             echo "$DESC" > task-desc.json
             STATUS=$(echo "$DESC" | jq -r '.tasks[0].lastStatus')
-            echo "lastStatus=$STATUS elapsed=${ELAPSED}s"
+            CONT_STATUS=$(echo "$DESC" | jq -r '.tasks[0].containers[0].lastStatus // ""')
+            CONT_REASON=$(echo "$DESC" | jq -r '.tasks[0].containers[0].reason // ""')
+            ENI_STATUS=$(echo "$DESC" | jq -r '.tasks[0].attachments[0].status // ""')
+            echo "lastStatus=$STATUS contStatus=$CONT_STATUS eni=$ENI_STATUS reason=$CONT_REASON elapsed=${ELAPSED}s"
             [ "$STATUS" = "STOPPED" ] && break
             sleep $SLEEP
             ELAPSED=$(( ELAPSED + SLEEP ))
