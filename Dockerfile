@@ -28,6 +28,17 @@ COPY environment.yml /tmp/environment.yml
 RUN micromamba install -y -n base -f /tmp/environment.yml \
  && micromamba clean --all --yes
 
+
+ RUN apt-get update && \
+ apt-get install -y --no-install-recommends build-essential clang && \
+ rm -rf /var/lib/apt/lists/*
+
+# make Triton happy + writable cache
+ENV CC=/usr/bin/clang \
+ CXX=/usr/bin/clang++ \
+ TRITON_CACHE_DIR=/tmp/triton-cache
+RUN mkdir -p /tmp/triton-cache && chmod -R 777 /tmp/triton-cache
+
 # Copy the rest of the app (do this after env to keep cache hits)
 COPY . /app
 # Ensure your entrypoint is executable
