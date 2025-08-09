@@ -8,7 +8,7 @@ on:
         required: true
         default: "train"
       image_tag:
-        description: "ECR image tag (e.g., latest or a SHA)"
+        description: "ECR image tag OR sha256 digest (e.g., latest OR sha256:...)"
         required: true
         default: "latest"
       enforce_single_instance:
@@ -23,12 +23,12 @@ on:
 env:
   AWS_REGION: us-east-2
   ECR_REPOSITORY: protov3
-  AWS_ROLE_NAME: GitHubActionsDeployRole   # role must exist and have trust policy
-  CLUSTER: proto-phi              # <-- set me
-  CP_NAME: Infra-ECS-Cluster-proto-phi-8fb98b30-AsgCapacityProvider-8II2wKNv8Crf        # <-- set me (the one wired to your ASG)
-  SUBNETS: subnet-0d2d641cd7ec72a28,subnet-00ec8c2e5a55e3c1a,subnet-0b51407e801e66f06      # <-- private subnets, comma-separated (no spaces)
-  SECURITY_GROUPS: 	sg-0b6cbfe847a1bf123        # <-- security group id
-  LOG_GROUP: /ecs/                       # <-- pre-create or allow creation in exec role
+  AWS_ROLE_NAME: GitHubActionsDeployRole       # role must exist and have trust policy
+  CLUSTER: proto-phi                           # <-- set me
+  CP_NAME: Infra-ECS-Cluster-proto-phi-8fb98b30-AsgCapacityProvider-8II2wKNv8Crf  # <-- set me
+  SUBNETS: subnet-0d2d641cd7ec72a28,subnet-00ec8c2e5a55e3c1a,subnet-0b51407e801e66f06  # private subnets (comma, no spaces)
+  SECURITY_GROUPS: sg-0b6cbfe847a1bf123        # security group id
+  LOG_GROUP: /ecs/                             # pre-create or allow creation in exec role
 
 jobs:
   run:
@@ -47,12 +47,53 @@ jobs:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ env.AWS_ROLE_NAME }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Patch task def with ECR image tag
+      - name: Patch task def with ECR image (tag/digest-safe, pin by digest)
+        id: patch
+        shell: bash
         run: |
-          IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ github.event.inputs.image_tag }}"
-          sed "s#<ACCOUNT_ID>#${{ secrets.AWS_ACCOUNT_ID }}#g" config/task_def.json \
+          set -euo pipefail
+
+          ACCT="${{ secrets.AWS_ACCOUNT_ID }}"
+          REG="${{ env.AWS_REGION }}"
+          REPO="${{ env.ECR_REPOSITORY }}"
+          RAW_TAG="$(printf '%s' "${{ github.event.inputs.image_tag }}" | tr -d '[:space:]')"
+          BASE="${ACCT}.dkr.ecr.${REG}.amazonaws.com/${REPO}"
+          IMAGE=""
+
+          # If the input is already a full ref, keep it verbatim
+          if [[ "$RAW_TAG" =~ ^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com/[a-z0-9._/-]+(:[A-Za-z0-9._-]+|@sha256:[a-f0-9]{64})$ ]]; then
+            IMAGE="$RAW_TAG"
+
+          # If it's a bare digest like sha256:abc..., use @digest form
+          elif [[ "$RAW_TAG" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+            IMAGE="${BASE}@${RAW_TAG}"
+
+          # Otherwise treat as a tag
+          else
+            IMAGE="${BASE}:${RAW_TAG}"
+
+            # (Optional but recommended) Resolve tag to digest and pin by digest
+            DIGEST="$(aws ecr describe-images \
+              --repository-name "${REPO}" \
+              --image-ids imageTag="${RAW_TAG}" \
+              --query 'imageDetails[0].imageDigest' --output text || true)"
+            if [[ "$DIGEST" != "None" && "$DIGEST" != "" ]]; then
+              IMAGE="${BASE}@${DIGEST}"
+            fi
+          fi
+
+          # Final validation: either :tag OR @sha256:digest (not both), all lowercase repo
+          if ! [[ "$IMAGE" =~ ^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com/[a-z0-9._/-]+(:[A-Za-z0-9._-]+|@sha256:[a-f0-9]{64})$ ]]; then
+            echo "Rendered invalid image reference: '$IMAGE'" >&2
+            exit 1
+          fi
+
+          # Apply account ID replacement and set image in TD
+          sed "s#<ACCOUNT_ID>#${ACCT}#g" config/task_def.json \
             | jq --arg img "$IMAGE" '.containerDefinitions[0].image = $img' > taskdef.out.json
+
           echo "Using image: $IMAGE"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
 
       - name: Register task definition revision
         id: reg
@@ -60,7 +101,14 @@ jobs:
           ARN=$(aws ecs register-task-definition \
             --cli-input-json file://taskdef.out.json \
             --query 'taskDefinition.taskDefinitionArn' --output text)
+          echo "Registered: $ARN"
           echo "taskdef_arn=$ARN" >> "$GITHUB_OUTPUT"
+
+      - name: Show stored image in registered task def
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition "${{ steps.reg.outputs.taskdef_arn }}" \
+            --query 'taskDefinition.containerDefinitions[0].image' --output text
 
       - name: Enforce single-instance capacity (ASG max=1 desired=1)
         if: github.event.inputs.enforce_single_instance == 'true'
@@ -94,6 +142,7 @@ jobs:
             --overrides "$OVERRIDES" \
             --query 'tasks[0].taskArn' --output text)
 
+          echo "Launched: $TASK_ARN"
           echo "task_arn=$TASK_ARN" >> "$GITHUB_OUTPUT"
 
       - name: Wait and fail on non-zero exit
@@ -101,7 +150,6 @@ jobs:
           set +e
           CLUSTER="${{ env.CLUSTER }}"
           TASK_ARN="${{ steps.run.outputs.task_arn }}"
-          # Simple long-poll loop (max ~3h)
           TIMEOUT_SEC=$((60 * 180))
           SLEEP=30
           ELAPSED=0
