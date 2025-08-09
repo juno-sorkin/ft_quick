@@ -47,21 +47,27 @@ def train_model(config, model, tokenizer, train_dataset, eval_dataset):
     except Exception:
         pass
 
+    # Handle different versions of the TrainingArguments API
+    training_args_dict = config['training'].copy()
+    if 'evaluation_strategy' in training_args_dict:
+        training_args_dict['eval_strategy'] = training_args_dict.pop('evaluation_strategy')
+
+
     training_args = TrainingArguments(
         output_dir=config['paths']['output_dir'],
-        per_device_train_batch_size=config['training']['per_device_train_batch_size'],
-        gradient_accumulation_steps=config['training']['gradient_accumulation_steps'],
-        warmup_steps=config['training']['warmup_steps'],
-        max_steps=config['training']['max_steps'],
-        learning_rate=config['training']['learning_rate'],
-        lr_scheduler_type=config['training']['lr_scheduler_type'],
-        fp16=not config['training']['bf16'],
-        bf16=config['training']['bf16'],
-        logging_steps=config['training']['logging_steps'],
-        evaluation_strategy=config['training']['evaluation_strategy'],
-        eval_steps=config['training']['eval_steps'],
-        save_steps=config['training']['save_steps'],
-        optim=config['training']['optimizer'],
+        per_device_train_batch_size=training_args_dict['per_device_train_batch_size'],
+        gradient_accumulation_steps=training_args_dict['gradient_accumulation_steps'],
+        warmup_steps=training_args_dict['warmup_steps'],
+        max_steps=training_args_dict['max_steps'],
+        learning_rate=training_args_dict['learning_rate'],
+        lr_scheduler_type=training_args_dict['lr_scheduler_type'],
+        fp16=not training_args_dict['bf16'],
+        bf16=training_args_dict['bf16'],
+        logging_steps=training_args_dict['logging_steps'],
+        eval_strategy=training_args_dict.get('eval_strategy'),
+        eval_steps=training_args_dict['eval_steps'],
+        save_steps=training_args_dict['save_steps'],
+        optim=training_args_dict['optimizer'],
         weight_decay=0.01,
         seed=42,
         report_to="wandb" if os.getenv("WANDB_API_KEY") else "none",
