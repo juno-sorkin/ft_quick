@@ -1,4 +1,4 @@
-from transformers import Trainer, TrainingArguments, TrainerCallback, TrainerState, TrainingControl
+from transformers import Trainer, TrainingArguments, TrainerCallback, TrainerState
 import os
 import torch
 import math
@@ -7,7 +7,7 @@ class PerplexityLoggingCallback(TrainerCallback):
     """
     A custom callback to compute and log perplexity.
     """
-    def on_log(self, args: TrainingArguments, state: TrainerState, control: TrainingControl, logs=None, **kwargs):
+    def on_log(self, args: TrainingArguments, state: TrainerState, control=None, logs=None, **kwargs):
         """
         Event called after logging. We use it to add perplexity.
         """
