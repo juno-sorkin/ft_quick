@@ -35,13 +35,14 @@ def load_model_and_tokenizer(model_config):
     print("--- Model and tokenizer loaded successfully ---")
     return model, tokenizer
 
-def apply_peft(model, lora_config):
+def apply_peft(model, lora_config, model_config):
     """
     Applies PEFT LoRA configuration to the model.
 
     Args:
         model: The model to which PEFT will be applied.
         lora_config (dict): A dictionary containing LoRA configuration.
+        model_config (dict): A dictionary containing model configuration to pass max_seq_length.
 
     Returns:
         The model with the PEFT configuration.
@@ -56,7 +57,7 @@ def apply_peft(model, lora_config):
         bias=lora_config['bias'],
         use_gradient_checkpointing=True,
         random_state=42,
-        max_seq_length=model.max_seq_length,
+        max_seq_length=model_config['max_seq_length'],
     )
     print("--- PEFT applied successfully ---")
     return model

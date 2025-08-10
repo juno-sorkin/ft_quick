@@ -32,7 +32,7 @@ def main():
         print("--- Starting Training Mode ---")
         # 1. Load tokenizer and model
         model, tokenizer = load_model_and_tokenizer(config['model'])
-        model = apply_peft(model, config['lora'])
+        model = apply_peft(model, config['lora'], config['model'])
 
         # 2. Load and prepare dataset
         dataset = load_and_prepare_dataset(config['data'], tokenizer)
