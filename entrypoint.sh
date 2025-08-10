@@ -24,6 +24,14 @@ else
   exit 1
 fi
 
+echo "--- Testing internet connectivity ---"
+if curl -s --head https://huggingface.co > /dev/null; then
+    echo "Successfully connected to Hugging Face."
+else
+    echo "Error: Failed to connect to Hugging Face. Check VPC/Subnet routing, NAT Gateway, Security Groups, and NACLs."
+    # We will proceed, assuming the model is cached, but this is a critical warning.
+fi
+
 # 1. Sync data from S3 (via boto3)
 echo "--- Syncing data from S3 ---"
 if [ -z "${S3_BUCKET}" ]; then
