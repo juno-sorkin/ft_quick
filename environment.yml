@@ -4,23 +4,30 @@ channels:
   - nvidia
   - conda-forge
 dependencies:
-  - python=3.10
-  - pytorch::pytorch
-  # - pytorch::torchvision #not needed for .txt ft
-  # - pytorch::torchaudio #same
-  - pytorch-cuda=12.1
-  - huggingface_hub
-  - transformers
-  - datasets
-  - peft
-  - accelerate
-  - wandb
-  - pytest
-  - boto3
-  - pyyaml
+  # Core
+  - python=3.10.*                # 3.10 is the safest bet with this stack
+  - pytorch::pytorch=2.5.1       # latest 2.5 patch; works with CUDA 12.1
+  - nvidia::pytorch-cuda=12.1    # CUDA runtime for the torch build
+
+  # Hugging Face + training
+  - huggingface_hub~=0.34.4
+  - transformers~=4.55.0
+  - peft~=0.17.0
+  - accelerate~=1.10.0
+  - datasets>=3.6,<4.0           # 4.0 adds optional features that want torch>=2.7
+
+  # Tooling
+  - wandb~=0.21.1
+  - pytest~=8.4.1
+  - boto3~=1.40.0
+  - pyyaml~=6.0.2
   - bzip2
   - pip
-  - pip:
-    - unsloth
-    - bitsandbytes
 
+  - pip:
+      # Keep these via pip (no good conda builds / moves fast)
+      - bitsandbytes~=0.46.1
+      - unsloth>=2025.7,<2025.9    # stick to a stable monthly line
+
+      # Optional speedups (add only if you need them)
+      # - xformers==0.0.28.post3    # last series that fits torch 2.5; skip on macOS/CPU
