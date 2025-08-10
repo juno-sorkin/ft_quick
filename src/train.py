@@ -11,6 +11,7 @@ class PerplexityLoggingCallback(TrainerCallback):
         """
         Event called after logging. We use it to add perplexity and ensure tensors are detached.
         """
+        print(">>> CUSTOM CALLBACK: Processing logs to prevent memory leak. <<<")
         if logs is not None and 'loss' in logs:
             # Ensure the loss value is a detached float to prevent memory leaks
             loss_value = logs['loss']
