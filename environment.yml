@@ -6,8 +6,6 @@ channels:
 dependencies:
   # Core
   - python=3.12
-  - pytorch::pytorch=2.7.*
-  - pytorch::pytorch-cuda=12.8
   - bzip2
   - pip
 
@@ -26,5 +24,7 @@ dependencies:
 
   # Pip extras
   - pip:
+      - --extra-index-url=https://download.pytorch.org/whl/cu128
+      - torch==2.7.0
       - bitsandbytes==0.46.1     # keep explicit
       - unsloth>=2025.7,<2025.9
