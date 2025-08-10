@@ -1,41 +1,29 @@
-from transformers import Trainer, TrainingArguments
+from transformers import Trainer, TrainingArguments, TrainerCallback, TrainerState, TrainingControl
 import os
 import torch
 import math
 
-class PerplexityTrainer(Trainer):
+class PerplexityLoggingCallback(TrainerCallback):
     """
-    A custom trainer to compute and log perplexity.
+    A custom callback to compute and log perplexity.
     """
-    def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
+    def on_log(self, args: TrainingArguments, state: TrainerState, control: TrainingControl, logs=None, **kwargs):
         """
-        Computes the loss and logs perplexity as a Python float.
+        Event called after logging. We use it to add perplexity.
         """
-        outputs = model(**inputs)
-        loss = outputs.loss
-
-        with torch.no_grad():
+        if logs is not None and 'loss' in logs:
             try:
-                loss_value = float(loss.detach().to(dtype=torch.float32).item())
-                perplexity_value = math.exp(loss_value) if loss_value < 88.0 else float("inf")
-            except Exception:
-                perplexity_value = float("inf")
-
-        self.log({"perplexity": perplexity_value})
-
-        return (loss, outputs) if return_outputs else loss
+                # Ensure loss is a float
+                loss_value = float(logs['loss'])
+                perplexity = math.exp(loss_value)
+                logs['perplexity'] = perplexity
+            except (OverflowError, ValueError):
+                logs['perplexity'] = float('inf')
 
 
 def train_model(config, model, tokenizer, train_dataset, eval_dataset):
     """
     Sets up and runs the training process.
-
-    Args:
-        config (dict): The main configuration dictionary.
-        model: The model to be trained.
-        tokenizer: The tokenizer associated with the model.
-        train_dataset: The training dataset.
-        eval_dataset: The evaluation dataset.
     """
     print("--- Setting up training ---")
 
@@ -74,13 +62,13 @@ def train_model(config, model, tokenizer, train_dataset, eval_dataset):
         run_name=f"finetune-{config['model']['name']}",
     )
 
-    trainer = PerplexityTrainer(
+    trainer = Trainer(
         model=model,
         tokenizer=tokenizer,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        # Data collator can be added here if needed
+        callbacks=[PerplexityLoggingCallback()],
     )
 
     print("--- Starting training ---")
