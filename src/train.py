@@ -7,7 +7,7 @@ class PerplexityTrainer(Trainer):
     """
     A custom trainer to compute and log perplexity.
     """
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
         """
         Computes the loss and logs perplexity as a Python float.
         """
