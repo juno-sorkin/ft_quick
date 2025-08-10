@@ -48,6 +48,10 @@ def apply_peft(model, lora_config, model_config):
         The model with the PEFT configuration.
     """
     print("--- Applying PEFT LoRA configuration ---")
+
+    # It's best practice to explicitly disable cache for training with gradient checkpointing
+    model.config.use_cache = False
+
     model = FastLanguageModel.get_peft_model(
         model,
         r=lora_config['r'],

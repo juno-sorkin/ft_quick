@@ -9,25 +9,41 @@ class PerplexityLoggingCallback(TrainerCallback):
     """
     def on_log(self, args: TrainingArguments, state: TrainerState, control=None, logs=None, **kwargs):
         """
-        Event called after logging. We use it to add perplexity and ensure tensors are detached.
+        Event called after logging. We access the state to prevent memory leaks.
         """
-        print(">>> CUSTOM CALLBACK: Processing logs to prevent memory leak. <<<")
-        if logs is not None and 'loss' in logs:
-            # Ensure the loss value is a detached float to prevent memory leaks
-            loss_value = logs['loss']
-            if hasattr(loss_value, 'item'):  # Check if it's a tensor
-                detached_loss = loss_value.item()
-            else:
-                detached_loss = float(loss_value)
-            
-            # Replace the tensor with a float in the logs dictionary
-            logs['loss'] = detached_loss
+        # Get the last log entry, which was just added by the Trainer.
+        # This is where the tensor is stored, causing the memory leak.
+        if state.log_history:
+            last_log = state.log_history[-1]
 
-            try:
-                perplexity = math.exp(detached_loss)
-                logs['perplexity'] = perplexity
-            except (OverflowError, ValueError):
-                logs['perplexity'] = float('inf')
+            if 'loss' in last_log:
+                loss_value = last_log['loss']
+                if hasattr(loss_value, 'item'):  # Check if it's a tensor
+                    detached_loss = loss_value.item()
+                else:
+                    detached_loss = float(loss_value)
+                
+                # Overwrite the tensor in the history with a detached float.
+                # THIS IS THE CRITICAL FIX.
+                state.log_history[-1]['loss'] = detached_loss
+
+                try:
+                    perplexity = math.exp(detached_loss)
+                    # Also add perplexity to the history log for consistency.
+                    state.log_history[-1]['perplexity'] = perplexity
+                except (OverflowError, ValueError):
+                    state.log_history[-1]['perplexity'] = float('inf')
+    
+    def on_step_end(self, args: TrainingArguments, state: TrainerState, control=None, **kwargs):
+        """
+        Event called at the end of a training step.
+        """
+        # Log GPU memory usage at each logging step to track baseline memory.
+        if state.global_step > 0 and state.global_step % args.logging_steps == 0:
+            if torch.cuda.is_available():
+                allocated = torch.cuda.memory_allocated() / 1024**3
+                reserved = torch.cuda.memory_reserved() / 1024**3
+                print(f"--- Step {state.global_step}: GPU mem allocated: {allocated:.2f} GiB, reserved: {reserved:.2f} GiB ---")
 
 
 def train_model(config, model, tokenizer, train_dataset, eval_dataset):
@@ -65,6 +81,8 @@ def train_model(config, model, tokenizer, train_dataset, eval_dataset):
         eval_steps=training_args_dict['eval_steps'],
         save_steps=training_args_dict['save_steps'],
         optim=training_args_dict['optimizer'],
+        group_by_length=True,
+        gradient_checkpointing=True,
         weight_decay=0.01,
         seed=42,
         report_to="wandb" if os.getenv("WANDB_API_KEY") else "none",

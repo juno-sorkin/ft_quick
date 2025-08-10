@@ -70,7 +70,7 @@ def load_and_prepare_dataset(data_config, tokenizer, model_config, paths_config=
             examples["text"],
             truncation=True,
             max_length=model_config['max_seq_length'],
-            padding="max_length",
+            padding=False,
         )
         # For language modeling, the labels are typically the input_ids themselves.
         # The model is responsible for shifting them internally.
