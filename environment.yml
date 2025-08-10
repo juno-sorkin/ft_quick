@@ -1,28 +1,25 @@
 name: text-style-mimicry
 channels:
   - pytorch
-  - nvidia/label/cuda-12.1.0
+  - nvidia
   - conda-forge
 dependencies:
-  # Core
-  - python=3.10.*
-  - pytorch::pytorch=2.5.*         # 2.5.x
-  - nvidia::pytorch-cuda=12.1      # CUDA 12.1 runtime for PyTorch
-
-  # HF + training
-  - transformers~=4.55.0
-  - datasets>=3.0,<4.0
-  - peft~=0.17.0
-  - accelerate~=1.10.0
-  - huggingface_hub~=0.34.0
-
-  # Tooling
-  - wandb>=0.21.0,<0.22.0          # 0.21.0 exists on conda-forge
-  - pytest~=8.4
-  - boto3~=1.34
-  - pyyaml~=6.0
+  - python=3.10
+  - pytorch::pytorch=2.5.*          # PyTorch 2.5.x
+  - pytorch::pytorch-cuda=12.1       # CUDA 12.1 variant (from pytorch channel)
+  - transformers=4.55.*
+  - datasets>=3,<4
+  - peft=0.17.*
+  - accelerate=1.10.*
+  - huggingface_hub=0.34.*
+  - wandb=0.21.0                     # conda-forge has 0.21.0
+  - pytest=8.4.*
+  - boto3=1.34.*
+  - pyyaml=6.*
   - bzip2
   - pip
   - pip:
-      - bitsandbytes~=0.46.0
+      - bitsandbytes==0.46.1
       - unsloth>=2025.7,<2025.9
+      # If you need exactly wandb 0.21.1, comment the conda line above and add:
+      # - wandb==0.21.1
