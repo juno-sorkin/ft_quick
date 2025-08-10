@@ -35,7 +35,7 @@ def main():
         model = apply_peft(model, config['lora'], config['model'])
 
         # 2. Load and prepare dataset
-        dataset = load_and_prepare_dataset(config['data'], tokenizer)
+        dataset = load_and_prepare_dataset(config['data'], tokenizer, config['model'])
 
         # 3. Start training
         train_model(config, model, tokenizer, dataset['train'], dataset['validation'])

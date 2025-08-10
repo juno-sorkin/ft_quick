@@ -2,7 +2,7 @@ from datasets import Dataset, DatasetDict
 import os
 import json
 
-def load_and_prepare_dataset(data_config, tokenizer, paths_config=None):
+def load_and_prepare_dataset(data_config, tokenizer, model_config, paths_config=None):
     """
     Loads a dataset from local files and prepares it for training.
     It now handles conversational JSON format by applying a chat template.
@@ -10,6 +10,7 @@ def load_and_prepare_dataset(data_config, tokenizer, paths_config=None):
     Args:
         data_config (dict): Configuration for data loading.
         tokenizer: The tokenizer to use for processing the text.
+        model_config (dict): Configuration for the model, used for max_seq_length.
         paths_config (dict, optional): Configuration for file paths. Defaults to {'input_dir': 'data_box/inputs'}.
 
     Returns:
@@ -68,7 +69,7 @@ def load_and_prepare_dataset(data_config, tokenizer, paths_config=None):
         return tokenizer(
             examples["text"],
             truncation=True,
-            max_length=tokenizer.model_max_length,
+            max_length=model_config['max_seq_length'],
             padding="max_length",
         )
 
