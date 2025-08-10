@@ -1,6 +1,6 @@
 # Text Style Mimicry with unsloth/gpt-oss-20b
 
-this program was written in 1 day to LoRA finetune the new gpt-oss-20b MOE multimodel released 8/5 
+this program was written in 2 days to LoRA finetune the new gpt-oss-20b MOE multimodel released 8/5 
 -finetines using perplexity based loss curves and recursive hyperparameter tuning to mimic writing style
     in this case I fine tuned on some essays i wrote in highschool pulled from an S3 bucket at runtime
 the workflow intentionally utizilizes a scalable CI/CD setup with AWS and Github actions runner, it runs on a ec2 g5.xlarge spot instance via ASG  

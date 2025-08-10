@@ -5,17 +5,25 @@ import math
 
 class PerplexityLoggingCallback(TrainerCallback):
     """
-    A custom callback to compute and log perplexity.
+    A custom callback to compute and log perplexity, preventing memory leaks.
     """
     def on_log(self, args: TrainingArguments, state: TrainerState, control=None, logs=None, **kwargs):
         """
-        Event called after logging. We use it to add perplexity.
+        Event called after logging. We use it to add perplexity and ensure tensors are detached.
         """
         if logs is not None and 'loss' in logs:
+            # Ensure the loss value is a detached float to prevent memory leaks
+            loss_value = logs['loss']
+            if hasattr(loss_value, 'item'):  # Check if it's a tensor
+                detached_loss = loss_value.item()
+            else:
+                detached_loss = float(loss_value)
+            
+            # Replace the tensor with a float in the logs dictionary
+            logs['loss'] = detached_loss
+
             try:
-                # Ensure loss is a float
-                loss_value = float(logs['loss'])
-                perplexity = math.exp(loss_value)
+                perplexity = math.exp(detached_loss)
                 logs['perplexity'] = perplexity
             except (OverflowError, ValueError):
                 logs['perplexity'] = float('inf')
