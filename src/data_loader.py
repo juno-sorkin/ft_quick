@@ -66,12 +66,16 @@ def load_and_prepare_dataset(data_config, tokenizer, model_config, paths_config=
 
     # Tokenization function
     def tokenize_function(examples):
-        return tokenizer(
+        tokenized_output = tokenizer(
             examples["text"],
             truncation=True,
             max_length=model_config['max_seq_length'],
             padding="max_length",
         )
+        # For language modeling, the labels are typically the input_ids themselves.
+        # The model is responsible for shifting them internally.
+        tokenized_output["labels"] = tokenized_output["input_ids"][:]
+        return tokenized_output
 
     # Apply tokenization
     tokenized_dataset = dataset.map(
